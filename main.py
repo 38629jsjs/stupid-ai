@@ -8,8 +8,11 @@ import os
 TOKEN = os.getenv("DISCORD_TOKEN")
 try:
     OWNER_ID = int(os.getenv("OWNER_ID"))
+    # Lock the bot to a specific channel
+    ALLOWED_CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 except:
     OWNER_ID = 0
+    ALLOWED_CHANNEL_ID = 0
 
 authorized_users = [OWNER_ID]
 
@@ -17,12 +20,13 @@ bot = commands.Bot(command_prefix=".", self_bot=True, help_command=None)
 
 @bot.event
 async def on_ready():
-    print(f"ghost coach active as {bot.user}")
+    print(f"ghost coach active as {bot.user} | locked to channel {ALLOWED_CHANNEL_ID}")
 
 # --- OWNER ONLY: AUTHORIZE OTHERS ---
 @bot.command()
 async def auth(ctx, user_id: int):
-    if ctx.author.id != OWNER_ID:
+    # Only work in the allowed channel and only for the owner
+    if ctx.channel.id != ALLOWED_CHANNEL_ID or ctx.author.id != OWNER_ID:
         return
     
     if user_id not in authorized_users:
@@ -30,14 +34,12 @@ async def auth(ctx, user_id: int):
         async with ctx.typing():
             await asyncio.sleep(random.uniform(1.0, 1.5))
             await ctx.send("bet i got u they can use it now")
-    else:
-        await ctx.send("yeah they already got access")
 
 # --- AUTHORIZED USERS: ACTIVATE THE AI ---
 @bot.command()
 async def ask(ctx):
-    # This check ensures only you and people you .auth can trigger it
-    if ctx.author.id not in authorized_users:
+    # Only work in the allowed channel and for authorized users
+    if ctx.channel.id != ALLOWED_CHANNEL_ID or ctx.author.id not in authorized_users:
         return
     
     async with ctx.typing():
@@ -46,14 +48,18 @@ async def ask(ctx):
 
 @bot.event
 async def on_message(message):
-    # 1. ALWAYS process commands first so .ask works
+    # 1. Ignore everything outside the allowed channel
+    if message.channel.id != ALLOWED_CHANNEL_ID:
+        return
+
+    # 2. Process commands (.ask, .auth)
     await bot.process_commands(message)
 
-    # 2. Ignore messages from the bot itself
+    # 3. Ignore self
     if message.author.id == bot.user.id:
         return
 
-    # 3. Handle the "Reply to Coach" Logic
+    # 4. Handle Expert Replies
     if message.reference:
         try:
             if message.author.id in authorized_users:
@@ -72,8 +78,6 @@ async def on_message(message):
                             response = "keep the alts staggered and dont burst commands or automod will catch u again stay lowkey and secure the bank every hour"
                         elif "fitness" in query or "gym" in query:
                             response = "focus on form over heavy weight man consistency is everything if u want results do it every single night without fail"
-                        elif "help" in query or "how" in query:
-                            response = "honestly just stay calm and look at the logic behind it most people rush and fail but if u take it slow u win every time"
                         else:
                             response = "u just gotta stay focused and keep grinding thats the only secret to being a pro for real"
 
