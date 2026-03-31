@@ -1,2 +1,2 @@
 discord.py-self
-google-generativeai
+google-genai
