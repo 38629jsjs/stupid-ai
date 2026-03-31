@@ -6,11 +6,13 @@ import os
 
 # --- CONFIG FROM KOYEB ---
 TOKEN = os.getenv("DISCORD_TOKEN")
-# Convert ID to int so the check works
 try:
-    AUTHORIZED_ID = int(os.getenv("AUTHORIZED_ID"))
+    OWNER_ID = int(os.getenv("OWNER_ID"))
 except:
-    AUTHORIZED_ID = 0
+    OWNER_ID = 0
+
+# Start with just the owner in the authorized list
+authorized_users = [OWNER_ID]
 
 bot = commands.Bot(command_prefix=".", self_bot=True, help_command=None)
 
@@ -18,41 +20,63 @@ bot = commands.Bot(command_prefix=".", self_bot=True, help_command=None)
 async def on_ready():
     print(f"ghost coach active as {bot.user}")
 
+# --- OWNER ONLY: AUTHORIZE OTHERS ---
+@bot.command()
+async def auth(ctx, user_id: int):
+    if ctx.author.id != OWNER_ID:
+        return
+    
+    if user_id not in authorized_users:
+        authorized_users.append(user_id)
+        # HUMAN RESPONSE: No dots, no "User ID", just casual talk
+        async with ctx.typing():
+            await asyncio.sleep(random.uniform(1.0, 2.0))
+            await ctx.send("bet i got u they can use it now")
+    else:
+        # If they are already in, don't say anything or say something casual
+        await ctx.send("yeah they already got access")
+
+# --- AUTHORIZED USERS: ACTIVATE THE AI ---
 @bot.command()
 async def ask(ctx):
-    if ctx.author.id != AUTHORIZED_ID:
+    if ctx.author.id not in authorized_users:
         return
-    await ctx.send("ask me anything")
+    
+    # HUMAN RESPONSE: No caps, no "Ask me anything."
+    async with ctx.typing():
+        await asyncio.sleep(random.uniform(1.0, 2.5))
+        await ctx.send("sup what u need help with")
 
 @bot.event
 async def on_message(message):
     if message.author.id == bot.user.id:
         return
 
-    if message.reference and message.author.id == AUTHORIZED_ID:
+    if message.reference:
         try:
-            referenced_msg = await message.channel.fetch_message(message.reference.message_id)
-            
-            if referenced_msg.author.id == bot.user.id:
-                async with message.channel.typing():
-                    # Random delay so it looks like a real person typing
-                    await asyncio.sleep(random.uniform(2.5, 4.5))
-                    
-                    query = message.content.lower()
-                    
-                    # --- CASUAL EXPERT RESPONSES (NO PUNCTUATION) ---
-                    if "game" in query or "mlbb" in query:
-                        response = "bro just focus on map awareness and stop chasing kills if u want mythical immortal focus on the lord and push towers dont overstay"
-                    elif "money" in query or "grind" in query:
-                        response = "keep the alts staggered and dont burst commands or automod will catch u again stay lowkey and secure the bank every hour"
-                    elif "fitness" in query or "gym" in query:
-                        response = "focus on form over heavy weight man consistency is everything if u want results do it every single night without fail"
-                    elif "help" in query or "how" in query:
-                        response = "honestly just stay calm and look at the logic behind it most people rush and fail but if u take it slow u win every time"
-                    else:
-                        response = "u just gotta stay focused and keep grinding thats the only secret to being a pro for real"
+            if message.author.id in authorized_users:
+                referenced_msg = await message.channel.fetch_message(message.reference.message_id)
+                
+                if referenced_msg.author.id == bot.user.id:
+                    async with message.channel.typing():
+                        # Realistic human typing speed (3 to 5 seconds)
+                        await asyncio.sleep(random.uniform(3.0, 5.0))
+                        
+                        query = message.content.lower()
+                        
+                        # --- CASUAL EXPERT RESPONSES (NO PUNCTUATION) ---
+                        if "game" in query or "mlbb" in query:
+                            response = "bro just focus on map awareness and stop chasing kills if u want mythical immortal focus on the lord and push towers dont overstay"
+                        elif "money" in query or "grind" in query:
+                            response = "keep the alts staggered and dont burst commands or automod will catch u again stay lowkey and secure the bank every hour"
+                        elif "fitness" in query or "gym" in query:
+                            response = "focus on form over heavy weight man consistency is everything if u want results do it every single night without fail"
+                        elif "help" in query or "how" in query:
+                            response = "honestly just stay calm and look at the logic behind it most people rush and fail but if u take it slow u win every time"
+                        else:
+                            response = "u just gotta stay focused and keep grinding thats the only secret to being a pro for real"
 
-                    await message.reply(response, mention_author=False)
+                        await message.reply(response, mention_author=False)
         except:
             pass
 
