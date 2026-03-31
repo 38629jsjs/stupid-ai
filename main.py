@@ -11,25 +11,24 @@ GEMINI_KEY = os.getenv("GEMINI_KEY")
 
 try:
     OWNER_ID = int(os.getenv("OWNER_ID"))
-    ALLOWED_CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 except:
     OWNER_ID = 0
-    ALLOWED_CHANNEL_ID = 0
 
 # Setup Gemini
 genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 authorized_users = [OWNER_ID]
 bot = commands.Bot(command_prefix=".", self_bot=True, help_command=None)
 
 @bot.event
 async def on_ready():
-    print(f"gemini ghost active as {bot.user}")
+    print(f"global gemini ghost active as {bot.user}")
 
 @bot.command()
 async def auth(ctx, user_id: int):
-    if ctx.channel.id != ALLOWED_CHANNEL_ID or ctx.author.id != OWNER_ID:
+    # .auth still works globally for you
+    if ctx.author.id != OWNER_ID:
         return
     if user_id not in authorized_users:
         authorized_users.append(user_id)
@@ -39,15 +38,17 @@ async def auth(ctx, user_id: int):
 
 @bot.event
 async def on_message(message):
-    if message.channel.id != ALLOWED_CHANNEL_ID:
-        return
-
+    # 1. Process commands (.auth, .ask)
     await bot.process_commands(message)
 
+    # 2. Ignore messages from the bot itself
     if message.author.id == bot.user.id:
         return
 
+    # 3. Check if the user is in your authorized list
     if message.author.id in authorized_users:
+        
+        # Check for Mention or Reply
         is_mention = bot.user.mentioned_in(message)
         is_reply = False
         if message.reference:
@@ -57,10 +58,11 @@ async def on_message(message):
                     is_reply = True
             except: pass
 
+        # TRIGGER: If pinged or replied to in ANY channel/server
         if is_mention or is_reply:
             async with message.channel.typing():
-                # Realistic human typing delay
-                await asyncio.sleep(random.uniform(4.0, 7.0))
+                # Random human-like delay
+                await asyncio.sleep(random.uniform(3.5, 6.5))
                 
                 clean_content = message.content
                 for mention in message.mentions:
@@ -71,9 +73,8 @@ async def on_message(message):
                     clean_content = "yo"
 
                 try:
-                    # THE GEMINI SYSTEM PROMPT: 
-                    # This tells Gemini how to act so it doesn't sound like a robot.
-                    prompt = f"Answer this short and casual like a 13yo pro gamer. No periods, no commas, all lowercase. Be an expert coach but talk normal: {clean_content}"
+                    # System prompt for the persona
+                    prompt = f"respond like a casual 13yo pro gamer no periods no commas all lowercase be an expert coach but talk normal: {clean_content}"
                     
                     response_data = model.generate_content(prompt)
                     ai_text = response_data.text.lower().replace('.', '').replace(',', '').strip()
@@ -84,6 +85,6 @@ async def on_message(message):
                     await message.reply(ai_text, mention_author=False)
                 except Exception as e:
                     print(f"Gemini Error: {e}")
-                    await message.reply("api is lagging bro hold on", mention_author=False)
+                    await message.reply("api is lagging bro wait", mention_author=False)
 
 bot.run(TOKEN)
