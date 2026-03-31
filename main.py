@@ -11,7 +11,6 @@ try:
 except:
     OWNER_ID = 0
 
-# Start with just the owner in the authorized list
 authorized_users = [OWNER_ID]
 
 bot = commands.Bot(command_prefix=".", self_bot=True, help_command=None)
@@ -28,30 +27,33 @@ async def auth(ctx, user_id: int):
     
     if user_id not in authorized_users:
         authorized_users.append(user_id)
-        # HUMAN RESPONSE: No dots, no "User ID", just casual talk
         async with ctx.typing():
-            await asyncio.sleep(random.uniform(1.0, 2.0))
+            await asyncio.sleep(random.uniform(1.0, 1.5))
             await ctx.send("bet i got u they can use it now")
     else:
-        # If they are already in, don't say anything or say something casual
         await ctx.send("yeah they already got access")
 
 # --- AUTHORIZED USERS: ACTIVATE THE AI ---
 @bot.command()
 async def ask(ctx):
+    # This check ensures only you and people you .auth can trigger it
     if ctx.author.id not in authorized_users:
         return
     
-    # HUMAN RESPONSE: No caps, no "Ask me anything."
     async with ctx.typing():
-        await asyncio.sleep(random.uniform(1.0, 2.5))
+        await asyncio.sleep(random.uniform(1.0, 2.0))
         await ctx.send("sup what u need help with")
 
 @bot.event
 async def on_message(message):
+    # 1. ALWAYS process commands first so .ask works
+    await bot.process_commands(message)
+
+    # 2. Ignore messages from the bot itself
     if message.author.id == bot.user.id:
         return
 
+    # 3. Handle the "Reply to Coach" Logic
     if message.reference:
         try:
             if message.author.id in authorized_users:
@@ -59,7 +61,6 @@ async def on_message(message):
                 
                 if referenced_msg.author.id == bot.user.id:
                     async with message.channel.typing():
-                        # Realistic human typing speed (3 to 5 seconds)
                         await asyncio.sleep(random.uniform(3.0, 5.0))
                         
                         query = message.content.lower()
@@ -79,7 +80,5 @@ async def on_message(message):
                         await message.reply(response, mention_author=False)
         except:
             pass
-
-    await bot.process_commands(message)
 
 bot.run(TOKEN)
